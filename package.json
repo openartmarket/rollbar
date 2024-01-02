@@ -25,7 +25,7 @@
   "scripts": {
     "test": "vitest",
     "coverage": "vitest run --coverage",
-    "compile": "tsup --external @supabase/supabase-js --dts --format cjs,esm --clean src/index.ts",
+    "build": "tsup --dts --format cjs,esm --clean src/index.ts",
     "lint": "eslint {src,test}/**/*.ts --fix",
     "upgrade": "npm-check-updates --upgrade",
     "prepare": "husky install",
