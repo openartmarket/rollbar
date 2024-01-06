@@ -13,11 +13,12 @@ const options: RollbarOptions = {
 };
 
 describe('Rollbar', () => {
-  it.only('waits for logs', async () => {
+  it('waits for logs', async () => {
     const rollbar = new Rollbar({ ...options, url: 'http://localhost:9999/nothing-here' });
     rollbar.log('hello');
     expect(rollbar.wait()).rejects.toThrowError('fetch failed');
   });
+
   it('creates a payload for an error', async () => {
     const rollbar = new Rollbar(options);
 

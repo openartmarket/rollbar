@@ -26,7 +26,7 @@ export type LogMessage = Error | string;
 export class Rollbar {
   private readonly request?: Request;
   private rollbarRequest?: RollbarRequest;
-  private readonly promises: Promise<void>[] = [];
+  private promises: Promise<void>[] = [];
 
   constructor(private readonly options: RollbarOptions) {
     if (options.request) {
@@ -51,35 +51,16 @@ export class Rollbar {
   }
 
   public log(logMessage: LogMessage, level: SeverityLevel = 'debug'): Promise<void> {
-    const { accessToken, customFetch = fetch, url = defaultUrl } = this.options;
-
     const promise = new Promise<void>((resolve, reject) => {
-      this.toPayload(logMessage)
-        .then((payload) => {
-          // Set the timestamp here rather than in toPayload - to avoid flaky tests
-          payload.data.timestamp = Math.round(Date.now() / 1000);
-          payload.data.level = level;
-
-          const responsePromise = customFetch(url, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Accept: 'application/json',
-              ...(accessToken ? { 'X-Rollbar-Access-Token': accessToken } : {}),
-            },
-            body: JSON.stringify(payload),
-          });
-          responsePromise
-            .then((res) => {
-              if (!res.ok) {
-                res.text().then((text) => {
-                  reject(new Error(`Failed to log to Rollbar: ${text}`));
-                });
-              } else {
-                resolve();
-              }
-            })
-            .catch(reject);
+      this.postItem(logMessage, level)
+        .then((res) => {
+          if (!res.ok) {
+            res.text().then((text) => {
+              reject(new Error(`Failed to log to Rollbar: ${text}`));
+            });
+          } else {
+            resolve();
+          }
         })
         .catch(reject);
     });
@@ -87,9 +68,31 @@ export class Rollbar {
     return promise;
   }
 
+  private async postItem(
+    logMessage: LogMessage,
+    level: SeverityLevel = 'debug',
+  ): Promise<Response> {
+    const { accessToken, customFetch = fetch, url = defaultUrl } = this.options;
+    const payload = await this.toPayload(logMessage);
+    // Set the timestamp here rather than in toPayload - to avoid flaky tests
+    payload.data.timestamp = Math.round(Date.now() / 1000);
+    payload.data.level = level;
+
+    return customFetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        ...(accessToken ? { 'X-Rollbar-Access-Token': accessToken } : {}),
+      },
+      body: JSON.stringify(payload),
+    });
+  }
+
   async wait(): Promise<void> {
-    console.log('WAIT PROMISES', this.promises.length);
-    await Promise.all(this.promises);
+    const promises = this.promises.slice();
+    this.promises = [];
+    await Promise.all(promises);
   }
 
   public async toPayload(logMessage: LogMessage): Promise<Payload> {
