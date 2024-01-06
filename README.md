@@ -55,10 +55,12 @@ await rollbar.log(...)
 ```
 
 If you log from synchronous functions and can't use `await`, you **must** call `wait`
-somewhere else in your code to make sure all rollbar requests complete
+somewhere else in your code to make sure all rollbar requests complete.
+
+This is especially important on Cloudflare Workers. If you forget to do this, 
+your worker might exit before the request has finished.
 
 ```typescript
-const rollbar = new SyncRollbar(request)
 rollbar.log(...)
 rollbar.log(...)
 

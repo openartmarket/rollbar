@@ -26,7 +26,7 @@ export type LogMessage = Error | string;
 export class Rollbar {
   private readonly request?: Request;
   private rollbarRequest?: RollbarRequest;
-  private promises: Promise<void>[] = [];
+  private readonly promises = new Set<Promise<void>>();
 
   constructor(private readonly options: RollbarOptions) {
     if (options.request) {
@@ -59,12 +59,13 @@ export class Rollbar {
               reject(new Error(`Failed to log to Rollbar: ${text}`));
             });
           } else {
+            this.promises.delete(promise);
             resolve();
           }
         })
         .catch(reject);
     });
-    this.promises.push(promise);
+    this.promises.add(promise);
     return promise;
   }
 
@@ -90,8 +91,7 @@ export class Rollbar {
   }
 
   async wait(): Promise<void> {
-    const promises = this.promises.slice();
-    this.promises = [];
+    const promises = [...this.promises];
     await Promise.all(promises);
   }
 
