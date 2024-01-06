@@ -1,3 +1,5 @@
+// https://docs.rollbar.com/reference/create-item
+
 export type Payload = {
   data: Data;
 };
@@ -26,10 +28,10 @@ export type Data = {
   // In a single-page javascript app, it could be the name of the current screen or route.
   context?: string;
   /** Data about the request this event occurred in. */
-  request?: RequestData;
+  request?: Request;
   person?: Person;
-  server?: ServerData;
-  client?: ClientData;
+  server?: Server;
+  client?: Client;
   custom?: JsonObject;
   fingerprint?: string;
   title?: string;
@@ -39,7 +41,7 @@ export type Data = {
 
 type BodyBase = {
   /** Telemetry data array. */
-  telemetry?: TelemetryData[];
+  telemetry?: Telemetry[];
 };
 
 export type TraceBody = BodyBase & {
@@ -64,17 +66,11 @@ export type Trace = {
   exception: Exception;
 };
 
-type TelemetryLevel = 'critical' | 'error' | 'warning' | 'info' | 'debug';
-type TelemetryType = 'log' | 'network' | 'dom' | 'navigation' | 'error' | 'manual';
-
-/**
- * Telemetry Data type
- */
-type TelemetryData = {
+export type Telemetry = {
   /** The severity level of the telemetry data. */
-  level: TelemetryLevel;
+  level: 'critical' | 'error' | 'warning' | 'info' | 'debug';
   /** The type of telemetry data. */
-  type: TelemetryType;
+  type: 'log' | 'network' | 'dom' | 'navigation' | 'error' | 'manual';
   /** The source of the telemetry data. */
   source: 'client' | 'server';
   /** When this occurred, as a unix timestamp in milliseconds. */
@@ -127,9 +123,6 @@ export type StackFrame = {
   locals?: Record<string, unknown>;
 };
 
-/**
- * Exception type
- */
 export type Exception = {
   /** The exception class name. */
   class: string;
@@ -139,22 +132,16 @@ export type Exception = {
   description?: string;
 };
 
-/**
- * Message type
- */
-type Message = {
+export type Message = {
   /** The primary message text, as a string. */
   body: string;
   /** Arbitrary metadata keys and values. */
-  [key: string]: unknown;
+  [key: string]: Json;
 };
 
 type SeverityLevel = 'critical' | 'error' | 'warning' | 'info' | 'debug';
 
-/**
- * Request Data type
- */
-type RequestData = {
+export type Request = {
   /** Full URL where this event occurred. */
   url: string;
   /** The request method. */
@@ -164,15 +151,15 @@ type RequestData = {
   /** Any routing parameters. */
   params?: Record<string, string>;
   /** Query string params. */
-  GET?: Record<string, unknown>;
+  GET?: Json;
   /** The raw query string. */
-  query_string: string;
+  query_string?: string;
   /** POST params. */
-  POST?: Record<string, unknown>;
+  POST?: Json;
   /** The raw POST body. */
-  body: string;
+  body?: string;
   /** The user's IP address as a string. */
-  user_ip: string;
+  user_ip?: string;
 };
 
 /**
@@ -190,7 +177,7 @@ type Person = {
 /**
  * Server Data type
  */
-type ServerData = {
+type Server = {
   /** A string representing the CPU. */
   cpu?: string;
   /** The server hostname. */
@@ -205,10 +192,7 @@ type ServerData = {
   sha?: string;
 };
 
-/**
- * Client Data type
- */
-type ClientData = {
+type Client = {
   /** A string representing the CPU. */
   cpu?: string;
   javascript?: {
@@ -223,9 +207,6 @@ type ClientData = {
   };
 };
 
-/**
- * Notifier type
- */
 type Notifier = {
   /** Name of the library. */
   name?: string;
@@ -237,4 +218,4 @@ type JsonObject = {
   [key: string]: Json;
 };
 
-type Json = string | number | boolean | null | Json[] | JsonObject;
+export type Json = string | number | boolean | null | Json[] | JsonObject;
