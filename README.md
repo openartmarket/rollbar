@@ -1,29 +1,67 @@
 This library is a zero-dependency Rollbar client that works in any JavaScript environment,
 including CloudFlare Workers, Bun, Deno, Node.js.
 
-## Why?
-
-The official library is very complex (XXX LOC)
-
 ## Differences from the official library:
+
+* 95% smaller (~300 SLOC vs ~7000 SLOC)
+* Only implements the [create-item](https://docs.rollbar.com/reference/create-item) API
+* Async API 
 
 The `Rollbar.log` signature is different from the official library in several ways.
 
-### Async
+## Installation
 
-The `log` function returns a promise. This means you should call it like this:
+    npm install @openartmarket/rollbar
+
+## Usage
+
+Define global options:
+
+```typescript
+const options: RollbarOptions = {
+  accessToken: process.env.ROLLBAR_ACCESS_TOKEN,
+  data: {
+    environment: 'some-environment',
+    code_version: '0.0.0',
+    framework: 'anything',
+    platform: 'node',
+
+    // You may want to specify more properties here
+  },
+};
+```
+
+Create a new `Rollbar` instance:
+
+```typescript
+import Rollbar from `@openartmarket/rollbar`
+
+const rollbar = new Rollbar(options)
+```
+
+It's *strongly recommended* to pass a `request` and `person` object 
+to the `Rollbar` constructor.
+
+You **must** create the `rollbar` instance *before* the `request` body is read by your code or web framework. This is to ensure the library can [clone](https://developer.mozilla.org/en-US/docs/Web/API/Request/clone) the request and extract details.
+
+```typescript
+const rollbar = new Rollbar({...options, request, person})
+```
+
+Log to rollbar. You can only log `string` and `Error` objects.
 
 ```typescript
 await rollbar.log(...)
 ```
 
-If you need synchronous logging, you should use a wrapper:
+If you log from synchronous functions and can't use `await`, you **must** call `wait`
+somewhere else in your code to make sure all rollbar requests complete
 
 ```typescript
 const rollbar = new SyncRollbar(request)
 rollbar.log(...)
 rollbar.log(...)
 
-// Wait for all logs to be sent
+// Wait for all logging requests to be sent
 await rollbar.wait()
 ```

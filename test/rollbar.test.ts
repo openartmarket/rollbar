@@ -1,18 +1,42 @@
 import { describe, expect, it } from 'vitest';
 import { Rollbar, RollbarOptions } from '../src/index';
+import { Data } from '../src/types';
 
 const options: RollbarOptions = {
   accessToken: process.env.ROLLBAR_ACCESS_TOKEN,
   data: {
     environment: '@openartmarket/rollbar',
     code_version: '0.0.0',
+    framework: 'anything',
     platform: 'node',
-    framework: 'vitest',
-    language: 'javascript',
   },
 };
 
 describe('Rollbar', () => {
+  it.only('waits for logs', async () => {
+    const rollbar = new Rollbar({ ...options, url: 'http://localhost:9999/nothing-here' });
+    rollbar.log('hello');
+    expect(rollbar.wait()).rejects.toThrowError('fetch failed');
+  });
+  it('creates a payload for an error', async () => {
+    const rollbar = new Rollbar(options);
+
+    const errorMessage = `test-${Date.now()}`;
+    const payload = await rollbar.toPayload(new Error(errorMessage));
+    if (!('trace' in payload.data.body)) {
+      throw new Error('No trace');
+    }
+    const expected: Partial<Data> = {
+      environment: '@openartmarket/rollbar',
+      code_version: '0.0.0',
+      framework: 'anything',
+      platform: 'node',
+      // Added by the library
+      language: 'javascript',
+    };
+    expect(payload.data).toMatchObject(expected);
+  });
+
   it('creates a payload for an error', async () => {
     const rollbar = new Rollbar(options);
 
@@ -24,6 +48,18 @@ describe('Rollbar', () => {
     expect(payload.data.body.trace.exception).toMatchObject({
       class: 'Error',
       message: errorMessage,
+    });
+  });
+
+  it('creates a payload for a message', async () => {
+    const rollbar = new Rollbar(options);
+
+    const payload = await rollbar.toPayload('hello');
+    if (!('message' in payload.data.body)) {
+      throw new Error('No message');
+    }
+    expect(payload.data.body.message).toMatchObject({
+      body: 'hello',
     });
   });
 

@@ -4,21 +4,37 @@ export type Payload = {
   data: Data;
 };
 
+export type Body = TraceBody | TraceChainBody | MessageBody;
+
 export type Data = {
   /** The name of the environment. */
   environment: string;
   /** Payload body data. */
-  body: TraceBody | TraceChainBody | MessageBody;
+  body: Body;
   /** The severity level. */
   level?: SeverityLevel;
   /** When this occurred, as a unix timestamp. */
   timestamp?: number;
   /** A string describing the version of the application code. */
   code_version?: string;
-  /** The platform on which this occurred. */
+  /**
+   * The platform on which this occurred.
+   * The platform on which this occurred. Meaningful platform names:
+   * "browser", "android", "ios", "flash", "client", "heroku", "google-app-engine"
+   * If this is a client-side event, be sure to specify the platform and use a post_client_item access token.
+   */
   platform?: string;
-  /** The name of the language your code is written in. */
-  language?: 'ruby' | 'javascript' | 'php' | 'java' | 'objective-c' | 'lua';
+  /**
+   * The name of the language your code is written in.
+   * The name of the language your code is written in.
+   * This can affect the order of the frames in the stack trace. The following languages set the most
+   * recent call first - 'ruby', 'javascript', 'php', 'java', 'objective-c', 'lua'
+   * It will also change the way the individual frames are displayed, with what is most consistent with
+   * users of the language.
+   *
+   * This is always javascript (this ia a JavaScript implementation)
+   */
+  language?: 'javascript';
   /** The name of the framework your code uses. */
   framework?: string;
   // Optional: context
@@ -139,7 +155,7 @@ export type Message = {
   [key: string]: Json;
 };
 
-type SeverityLevel = 'critical' | 'error' | 'warning' | 'info' | 'debug';
+export type SeverityLevel = 'critical' | 'error' | 'warning' | 'info' | 'debug';
 
 export type Request = {
   /** Full URL where this event occurred. */

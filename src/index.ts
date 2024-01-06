@@ -1,22 +1,32 @@
 import ErrorStackParser from 'error-stack-parser';
-import { Trace, StackFrame, Payload, Data, Request as RollbarRequest, Json } from './types';
-
-const rollbarUrl = `https://api.rollbar.com/api/1/item/`;
-
-export type RollbarData = Pick<
+import {
+  Trace,
+  StackFrame,
+  Payload,
   Data,
-  'environment' | 'code_version' | 'platform' | 'framework' | 'language'
->;
+  Request as RollbarRequest,
+  Json,
+  Body,
+  SeverityLevel,
+} from './types';
+
+const defaultUrl = `https://api.rollbar.com/api/1/item/`;
+
+export type RollbarData = Omit<Data, 'request' | 'body'>;
 export type RollbarOptions = {
   data: RollbarData;
   request?: Request;
   accessToken?: string;
   customFetch?: typeof fetch;
+  url?: string;
 };
+
+export type LogMessage = Error | string;
 
 export class Rollbar {
   private readonly request?: Request;
   private rollbarRequest?: RollbarRequest;
+  private readonly promises: Promise<void>[] = [];
 
   constructor(private readonly options: RollbarOptions) {
     if (options.request) {
@@ -24,35 +34,87 @@ export class Rollbar {
     }
   }
 
-  public async log(error: Error) {
-    const { accessToken, customFetch = fetch } = this.options;
-
-    const payload = await this.toPayload(error);
-
-    const res = await customFetch(rollbarUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-        ...(accessToken ? { 'X-Rollbar-Access-Token': accessToken } : {}),
-      },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) {
-      throw new Error(`Failed to log to Rollbar: ${await res.text()}`);
-    }
+  public async debug(logMessage: LogMessage) {
+    return this.log(logMessage, 'debug');
+  }
+  public async critical(logMessage: LogMessage) {
+    return this.log(logMessage, 'critical');
+  }
+  public async error(logMessage: LogMessage) {
+    return this.log(logMessage, 'error');
+  }
+  public async info(logMessage: LogMessage) {
+    return this.log(logMessage, 'info');
+  }
+  public async warning(logMessage: LogMessage) {
+    return this.log(logMessage, 'warning');
   }
 
-  public async toPayload(error: Error): Promise<Payload> {
+  public log(logMessage: LogMessage, level: SeverityLevel = 'debug'): Promise<void> {
+    const { accessToken, customFetch = fetch, url = defaultUrl } = this.options;
+
+    const promise = new Promise<void>((resolve, reject) => {
+      this.toPayload(logMessage)
+        .then((payload) => {
+          // Set the timestamp here rather than in toPayload - to avoid flaky tests
+          payload.data.timestamp = Math.round(Date.now() / 1000);
+          payload.data.level = level;
+
+          const responsePromise = customFetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Accept: 'application/json',
+              ...(accessToken ? { 'X-Rollbar-Access-Token': accessToken } : {}),
+            },
+            body: JSON.stringify(payload),
+          });
+          responsePromise
+            .then((res) => {
+              if (!res.ok) {
+                res.text().then((text) => {
+                  reject(new Error(`Failed to log to Rollbar: ${text}`));
+                });
+              } else {
+                resolve();
+              }
+            })
+            .catch(reject);
+        })
+        .catch(reject);
+    });
+    this.promises.push(promise);
+    return promise;
+  }
+
+  async wait(): Promise<void> {
+    console.log('WAIT PROMISES', this.promises.length);
+    await Promise.all(this.promises);
+  }
+
+  public async toPayload(logMessage: LogMessage): Promise<Payload> {
     const { data } = this.options;
     const rollbarRequest = await this.getRollbarRequest();
+    let body: Body;
+    if (typeof logMessage === 'string') {
+      body = {
+        message: {
+          body: logMessage,
+        },
+      };
+    } else if (logMessage instanceof Error) {
+      body = {
+        trace: toRollbarTrace(logMessage),
+      };
+    } else {
+      throw new Error('must be string or Error');
+    }
     return {
       data: {
         ...data,
-        body: {
-          trace: toRollbarTrace(error),
-        },
+        body,
         request: rollbarRequest,
+        language: 'javascript',
       },
     };
   }
