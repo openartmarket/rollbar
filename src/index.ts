@@ -8,25 +8,27 @@ export type RollbarData = Pick<
   'environment' | 'code_version' | 'platform' | 'framework' | 'language'
 >;
 export type RollbarOptions = {
+  data: RollbarData;
+  request?: Request;
   accessToken?: string;
   customFetch?: typeof fetch;
 };
 
-export type LogParams = {
-  error: Error;
-  request?: Request;
-};
-
 export class Rollbar {
-  constructor(
-    private readonly data: RollbarData,
-    private readonly options: RollbarOptions,
-  ) {}
+  private readonly request?: Request;
+  private rollbarRequest?: RollbarRequest;
 
-  public async log(params: LogParams) {
-    const payload = await this.toPayload(params);
+  constructor(private readonly options: RollbarOptions) {
+    if (options.request) {
+      this.request = options.request.clone();
+    }
+  }
 
+  public async log(error: Error) {
     const { accessToken, customFetch = fetch } = this.options;
+
+    const payload = await this.toPayload(error);
+
     const res = await customFetch(rollbarUrl, {
       method: 'POST',
       headers: {
@@ -36,19 +38,32 @@ export class Rollbar {
       },
       body: JSON.stringify(payload),
     });
-    console.log(res.status);
+    if (!res.ok) {
+      throw new Error(`Failed to log to Rollbar: ${await res.text()}`);
+    }
   }
 
-  public async toPayload({ error, request }: LogParams): Promise<Payload> {
+  public async toPayload(error: Error): Promise<Payload> {
+    const { data } = this.options;
+    const rollbarRequest = await this.getRollbarRequest();
     return {
       data: {
-        ...this.data,
+        ...data,
         body: {
           trace: toRollbarTrace(error),
         },
-        request: request ? await toRollbarRequest(request) : undefined,
+        request: rollbarRequest,
       },
     };
+  }
+
+  private async getRollbarRequest(): Promise<RollbarRequest | undefined> {
+    if (this.rollbarRequest) {
+      return this.rollbarRequest;
+    } else {
+      this.rollbarRequest = this.request ? await toRollbarRequest(this.request) : undefined;
+    }
+    return this.rollbarRequest;
   }
 }
 
