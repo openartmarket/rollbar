@@ -37,17 +37,17 @@ export class Rollbar {
   public async debug(logMessage: LogMessage) {
     return this.log(logMessage, 'debug');
   }
-  public async critical(logMessage: LogMessage) {
-    return this.log(logMessage, 'critical');
-  }
-  public async error(logMessage: LogMessage) {
-    return this.log(logMessage, 'error');
-  }
   public async info(logMessage: LogMessage) {
     return this.log(logMessage, 'info');
   }
   public async warning(logMessage: LogMessage) {
     return this.log(logMessage, 'warning');
+  }
+  public async critical(logMessage: LogMessage) {
+    return this.log(logMessage, 'critical');
+  }
+  public async error(logMessage: LogMessage) {
+    return this.log(logMessage, 'error');
   }
 
   public log(logMessage: LogMessage, level: SeverityLevel = 'debug'): Promise<void> {

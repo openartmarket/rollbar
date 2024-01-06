@@ -7,8 +7,6 @@ including CloudFlare Workers, Bun, Deno, Node.js.
 * Only implements the [create-item](https://docs.rollbar.com/reference/create-item) API
 * Async API 
 
-The `Rollbar.log` signature is different from the official library in several ways.
-
 ## Installation
 
     npm install @openartmarket/rollbar
@@ -51,18 +49,22 @@ const rollbar = new Rollbar({...options, request, person})
 Log to rollbar. You can only log `string` and `Error` objects.
 
 ```typescript
-await rollbar.log(...)
+await rollbar.debug(...)
+await rollbar.info(...)
+await rollbar.warning(...)
+await rollbar.error(...)
+await rollbar.critical(...)
 ```
 
 If you log from synchronous functions and can't use `await`, you **must** call `wait`
 somewhere else in your code to make sure all rollbar requests complete.
 
 This is especially important on Cloudflare Workers. If you forget to do this, 
-your worker might exit before the request has finished.
+your worker might exit before pending Rollbar requests have finished.
 
 ```typescript
-rollbar.log(...)
-rollbar.log(...)
+rollbar.debug(...)
+rollbar.debug(...)
 
 // Wait for all logging requests to be sent
 await rollbar.wait()
